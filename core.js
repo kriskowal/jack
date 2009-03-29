@@ -86,9 +86,13 @@ var Loader = function (options) {
 
     loader.load = function (canonical) {
         if (!Object.prototype.hasOwnProperty.call(factories, canonical)) {
-            factories[canonical] = loader.evaluate(loader.fetch(canonical), canonical);
+            loader.reload(canonical);
         }
         return factories[canonical];
+    };
+
+    loader.reload = function (canonical) {
+        factories[canonical] = loader.evaluate(loader.fetch(canonical), canonical);
     };
 
     loader.getPaths = function () {
@@ -120,7 +124,7 @@ var Sandbox = function (options) {
     var debugDepth = 0;
     var mainId;
 
-    var sandbox = function (id, baseId) {
+    var sandbox = function (id, baseId, force) {
         id = loader.resolve(id, baseId);
 
         log.debug("require: " + id + " (parent="+baseId+")");
@@ -129,7 +133,7 @@ var Sandbox = function (options) {
             mainId = id;
 
         /* populate memo with module instance */
-        if (!Object.prototype.hasOwnProperty.call(modules, id)) {
+        if (!Object.prototype.hasOwnProperty.call(modules, id) || force) {
 
             if (debug) {
                 debugDepth++;
@@ -147,6 +151,8 @@ var Sandbox = function (options) {
             
             try {
                 var exports = modules[id] = {};
+                if (force)
+                    loader.reload();
                 var factory = loader.load(id);
                 var require = Require(id);
                 factory(require, exports, sandboxEnvironment);
@@ -177,14 +183,17 @@ var Sandbox = function (options) {
     };
 
     var Require = function (baseId) {
-        var require = function (id) {
+        var require = function (id, force) {
             try {
-                return sandbox(id, baseId);
+                return sandbox(id, baseId, force);
             } catch (exception) {
                 if (exception.message)
                     exception.message += ' in ' + baseId;
                 throw exception;
             }
+        };
+        require.force = function (id) {
+            return require(id, true);
         };
         require.id = baseId;
         require.loader = loader;
