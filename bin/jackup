@@ -118,7 +118,9 @@ function main() {
     
     if (!server)
     {
-        if (system.platform === "rhino")
+        if (system.env['PHP_FCGI_CHILDREN'] !== undefined)
+            server = "fastcgi";
+        else if (system.platform === "rhino")
             server = "simple";
         else if (system.platform === "k7")
             server = "shttpd";
@@ -129,7 +131,7 @@ function main() {
     }
 
     // Load the required handler.
-    var handler = require("jack/handler/" + server).Handler;
+    var handler = require("jack/handler/" + server);
     
     handler.run(app, options);
 }
